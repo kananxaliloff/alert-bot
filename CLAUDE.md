@@ -9,11 +9,13 @@ ArgoCD/Gravitee errors every 5 minutes. Goal: notify once when an issue appears,
 - The owner is new to Go. In summaries, explain any non-obvious Go idiom in a line.
 - Be concrete and pragmatic. No generic explanations.
 - Never put real tokens, passwords or emails in files, logs or chat. Config comes from environment variables. Anything that prints config must go through the masking in internal/config.
-- Verification: Claude's sandbox has Go but cannot download third-party modules. Standard-library code is built and tested there. Code that needs third-party modules (pgx, goose, Telegram, LDAP) is written but the owner runs `go mod tidy`, `go build ./...` and `go test ./...` locally and reports errors. Prefer designs where logic lives in stdlib-only packages behind interfaces.
+- Verification: Claude's sandbox has Go but cannot download third-party modules and has no PostgreSQL server. Everything except two files is stdlib-only and is built and tested there with `go vet -tags nopgx,noldap ./... && go test -tags nopgx,noldap ./...`. The two files that import third-party modules (cmd/alertbot/driver_pgx.go, internal/directory/ldapdir) are written but not compiled there: the owner runs `go mod tidy` once, then `go build ./...`.
+- The Postgres store is checked by the same contract suite as the Memory store: create a database ending in _test, set TEST_DATABASE_URL, run `go test -tags integration ./internal/store/...`.
+- Commits: one commit per task (or logical step), author is the owner, never push.
 
 ## Stack (decided)
-Go, single binary. PostgreSQL via pgx (registered only in cmd/alertbot, store code uses database/sql), plain SQL, goose migrations. go-ldap for Active Directory.
-Telegram library TBD (go-telegram/bot or telebot). SMTP with STARTTLS. Layout: cmd/alertbot, internal/{config,store,poller,engine,notify,bot,auth,web}.
+Go, single binary. PostgreSQL via pgx (driver registered only in cmd/alertbot behind build tag !nopgx, store code uses database/sql), plain SQL, own tiny migration runner (embedded NNNN_name.sql files, no goose). go-ldap for Active Directory (isolated in internal/directory/ldapdir, build tag !noldap).
+Telegram: own thin Bot API client on net/http (no library). SMTP via net/smtp with STARTTLS. Layout: cmd/alertbot, internal/{config,store,poller,engine,notify,bot,auth,web}.
 Local dev: `docker compose up -d` (postgres:16-alpine). Config via env or a git-ignored .env (see .env.example).
 
 ## Core design
@@ -30,7 +32,7 @@ Local dev: `docker compose up -d` (postgres:16-alpine). Config via env or a git-
 - Sign-up: /start -> work email -> AD lookup (exists + enabled, indexed LDAP filter on mail) -> OTP by email -> status pending.
 - OTP: 6 digits from crypto/rand, store hash only, 10 min TTL, 5 attempts, resend cooldown, rate limits per email and per chat, stored in DB, never logged.
 - Admin approves pending users and assigns role + tags with buttons; then active. Admins see name/title from AD.
-- States: unverified -> pending -> active -> disabled -> deleted. Offboarding is admin-only (disable, later delete = purge personal data after N days). Daily AD sync is a possible later extra.
+- States: unverified -> pending -> active <-> disabled. Offboarding is admin-only: disable is reversible, delete really removes the user, their tags and OTP history (audit rows stay, they hold ids only). Daily AD sync is a possible later extra.
 - Roles/titles hierarchy (tree) and permissions (e.g. broadcast:all, approve:users, disable:users) live in our DB. Audit log for approvals, disables, deletes, broadcasts.
 
 ## Legacy / references
@@ -40,7 +42,7 @@ Local dev: `docker compose up -d` (postgres:16-alpine). Config via env or a git-
 ## Progress
 - [x] 0 Go module, hello main, .gitignore, docker-compose
 - [x] 1 Config from env (+ .env loader, secret masking)
-- [ ] 2 Postgres store + migrations
+- [x] 2 Store (Memory + Postgres, contract tests), migrations, roles/permissions (internal/access)
 - [ ] 3 Alert engine (pure function + tests)
 - [ ] 4 ArgoCD poller
 - [ ] 5 Telegram sender
