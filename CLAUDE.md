@@ -43,7 +43,10 @@ Local dev: `docker compose up -d` (postgres:16-alpine). Config via env or a git-
 - [x] 0 Go module, hello main, .gitignore, docker-compose
 - [x] 1 Config from env (+ .env loader, secret masking)
 - [x] 2 Store (Memory + Postgres, contract tests), migrations, roles/permissions (internal/access)
-- [ ] 3 Alert engine (pure function + tests)
+- [x] 3 Telegram client (internal/telegram)
+- [x] 3b Employee directory, SMTP/log mailer, OTP sign-up service (internal/directory, internal/mail, internal/auth)
+- [ ] 3c Bot sign-up + admin approval flow, main wiring (live-test milestone)
+- [ ] 3d Alert engine (pure function + tests)
 - [ ] 4 ArgoCD poller
 - [ ] 5 Telegram sender
 - [ ] 6 Gravitee poller
