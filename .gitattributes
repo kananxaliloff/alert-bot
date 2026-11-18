@@ -1,0 +1,6 @@
+# Keep line endings stable when working across Windows and macOS laptops.
+* text=auto
+*.go text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.md text eol=lf

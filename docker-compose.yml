@@ -1,0 +1,23 @@
+# Local development database only.
+# Start: docker compose up -d      Stop: docker compose down      Wipe data: docker compose down -v
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: alertbot
+      POSTGRES_PASSWORD: alertbot
+      POSTGRES_DB: alertbot
+    ports:
+      # Bound to localhost only. Change the left number if 5432 is already used on your machine.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alertbot -d alertbot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
